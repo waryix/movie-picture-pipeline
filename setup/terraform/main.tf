@@ -188,7 +188,7 @@ resource "aws_iam_role_policy_attachment" "eks_service" {
 ##################
 # Track latest release for the given k8s version
 data "aws_ssm_parameter" "eks_ami_release_version" {
-  name = "/aws/service/eks/optimized-ami/${aws_eks_cluster.main.version}/amazon-linux-2/recommended/release_version"
+  name = "/aws/service/eks/optimized-ami/${aws_eks_cluster.main.version}/amazon-linux-2023/x86_64/standard/recommended/release_version"
 }
 
 resource "aws_eks_node_group" "main" {
@@ -275,7 +275,7 @@ resource "aws_codebuild_project" "codebuild" {
 
   source {
     type            = "GITHUB"
-    location        = "https://github.com/your-org/your-repo"
+    location        = "https://github.com/waryix/movie-picture-pipeline.git"
     git_clone_depth = 1
     buildspec       = "buildspec.yml"
   }
@@ -316,15 +316,22 @@ resource "aws_iam_user" "github_action_user" {
   name = "github-action-user"
 }
 
-resource "aws_iam_user_policy" "github_action_user_permission" {
-  user   = aws_iam_user.github_action_user.name
-  policy = data.aws_iam_policy_document.github_policy.json
+resource "aws_iam_policy" "github_action_user_policy" {
+  name = "github-action-user-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:*", "eks:*", "ec2:*"]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
-data "aws_iam_policy_document" "github_policy" {
-  statement {
-    effect    = "Allow"
-    actions   = ["ecr:*", "eks:*", "ec2:*"]
-    resources = ["*"]
-  }
+resource "aws_iam_user_policy_attachment" "github_action_user_policy_attachment" {
+  user       = aws_iam_user.github_action_user.name
+  policy_arn = aws_iam_policy.github_action_user_policy.arn
 }
